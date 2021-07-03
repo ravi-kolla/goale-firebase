@@ -3,6 +3,7 @@ const { db } = require('../util/admin');
 exports.getAllGoals = (request, response) => {
 	db
 		.collection('goals')
+		.where('username', '==', request.user.username)
 		.orderBy('createdAt', 'desc')
 		.get()
 		.then((data) => {
@@ -23,6 +24,30 @@ exports.getAllGoals = (request, response) => {
 		});
 };
 
+exports.getOneGoal = (request, response) => {
+	db
+    .doc(`/goals/${request.params.goalId}`)
+		.get()
+		.then((doc) => {
+			if (!doc.exists) {
+				return response.status(404).json(
+                {
+                    error: 'Todo not found'
+                });
+        }
+        if(doc.data().username !== request.user.username){
+            return response.status(403).json({error:"UnAuthorized"})
+        }
+			GoalData = doc.data();
+			GoalData.todoId = doc.id;
+			return response.json(TodoData);
+		})
+		.catch((err) => {
+			console.error(err);
+			return response.status(500).json({ error: error.code });
+		});
+};
+
 exports.postOneGoal = (request, response) => {
 	if (request.body.description.trim() === '') {
 		return response.status(400).json({ description: 'Must not be empty' });
@@ -35,7 +60,8 @@ exports.postOneGoal = (request, response) => {
   const newGoalItem = {
       title: request.body.title,
       description: request.body.description,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+			username: request.user.username
   }
   db
       .collection('goals')
@@ -80,7 +106,7 @@ exports.editGoal = ( request, response ) => {
     .catch((err) => {
         console.error(err);
         return response.status(500).json({
-                error: err.code 
+                error: err.code
         });
     });
 };
